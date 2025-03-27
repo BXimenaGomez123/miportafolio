@@ -21,7 +21,7 @@
         <dt>Public Repos</dt>
         <dd>{data.public_repos}</dd>
       </dl>
-    </section> 
+    </section>  
   {:catch error}
     <p class="error">Something went wrong: {error.message}</p>
   {/await}
