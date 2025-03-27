@@ -19,7 +19,7 @@
         <dt>Following</dt>
         <dd>{data.following}</dd>
         <dt>Public Repos</dt>
-        <dd>{data.public_repos}</dd>
+        <dd>{data.public_repos}</dd> 
       </dl>
     </section>  
   {:catch error}
