@@ -6,6 +6,7 @@ comits by time and date
     import * as d3 from "d3";
     import { onMount } from "svelte";
     import Bar from '$lib/Bar.svelte';
+    
     import {
         computePosition,
         autoPlacement,
@@ -32,6 +33,12 @@ comits by time and date
     let commitTooltip;
 
     let tooltipPosition = {x: 0, y: 0};
+    
+    let commitProgress = 100;
+
+    let commitMaxTime = new Date(); 
+    let minDate, maxDate;
+
     
 
     async function dotInteraction (index, evt) {
@@ -103,11 +110,15 @@ $: minDate = d3.min(commits.map(d => d.date));
 $: maxDate = d3.max(commits.map(d => d.date));
 $: maxDatePlusOne = new Date(maxDate);
 $: maxDatePlusOne.setDate(maxDatePlusOne.getDate() + 1);
+$: filteredCommits = commits.filter(commit => new Date(commit.datetime) <= commitMaxTime);
+$: filteredLines = data.filter(line => new Date(line.datetime) <= commitMaxTime);
+
+$: allTypes = Array.from(new Set(data.map(d => d.type)));
 
 $: xScale = d3.scaleTime()
-              .domain([minDate, maxDatePlusOne])
-              .range([usableArea.left, usableArea.right])
-              .nice();
+            .domain([minDate, maxDate])
+            .range([0, width]);
+            
 
 $: yScale = d3.scaleLinear()
               .domain([24, 0])
@@ -116,6 +127,11 @@ $: yScale = d3.scaleLinear()
 $: rScale = d3.scaleSqrt()
                 .domain(d3.extent(commits.map(d=>d.totalLines)))
                 .range([2, 30]);
+
+
+$: timeScale = d3.scaleTime().domain([minDate,maxDate]).range([0,100]);
+$: commitMaxTime = timeScale.invert(commitProgress);
+
 
 
 let margin = {top: 10, right: 10, bottom: 30, left: 20};
@@ -129,6 +145,7 @@ let usableArea = {
 usableArea.width = usableArea.right - usableArea.left;
 usableArea.height = usableArea.bottom - usableArea.top;
 let xAxis, yAxis;
+$: selectedLines = (clickedCommits.length > 0 ? clickedCommits : commits).flatMap(d => d.lines);
 
 $: {
     d3.select(xAxis).call(d3.axisBottom(xScale));
@@ -144,6 +161,13 @@ $: {
           .tickSize(-usableArea.width)
     );
 }
+
+$: selectedCounts = d3.rollup(
+    selectedLines,
+    v => v.length,
+    d => d.type
+);
+$: languageBreakdown = allTypes.map(type => [type, selectedCounts.get(type) || 0]);
 
 
 </script>
@@ -168,11 +192,21 @@ $: {
     <!-- Add: Time, author, lines edited -->
 </dl>
 
+<div class="slider-container">
+    <div class="slider">
+        <label for="slider">Show commits until:</label>
+        <input type="range" id="slider" name="slider" min=0 max=100 bind:value={commitProgress}/>
+    </div>
+    <time class="time-label">{commitMaxTime.toLocaleString()}</time>
+</div>
 
 <svg viewBox="0 0 {width} {height}">
     <g class="dots">
-        {#each commits as commit, index }
+        <!-- {#each commits as commit, index } -->
+        {#each filteredCommits as commit, index (commit.id) }
+
             <circle
+            
                 on:mouseenter={evt => dotInteraction(index, evt)}
                 on:mouseleave={evt => dotInteraction(index, evt)}
                 on:click={ evt => dotInteraction(index, evt) }
@@ -183,6 +217,7 @@ $: {
                 fill="steelblue"
                 fill-opacity="0.5"
             />
+            <Bar data={languageBreakdown} width={width} />
 
         {/each}
     </g>
@@ -193,6 +228,9 @@ $: {
     
 
 </svg>
+
+
+
 
 <section>
     <h2>Summary</h2>
@@ -274,6 +312,9 @@ $: {
     circle {
         transition: 200ms;
         
+        @starting-style {
+            r: 0;
+        }
 
         &:hover {
             transform: scale(1.5);
@@ -285,6 +326,20 @@ $: {
     .selected {
         fill: var(--color-accent);
     }
+    .slider-container{
+        display:grid;
+    }
+    .slider{
+        display: flex;
+    }
+    #slider{
+        flex:1;
+    }
+    .time-label{
+        font-size: 0.75em;
+        text-align: right;
+    }
+
 
 </style>
 
