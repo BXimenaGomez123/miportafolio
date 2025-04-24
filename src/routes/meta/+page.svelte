@@ -5,6 +5,7 @@ comits by time and date
 <script>
     import * as d3 from "d3";
     import { onMount } from "svelte";
+    import Bar from '$lib/Bar.svelte';
     import {
         computePosition,
         autoPlacement,
@@ -21,6 +22,8 @@ comits by time and date
     let yAxisGridlines;
 
     let cursor = {x: 0, y: 0};
+
+    let clickedCommits = [];
 
 
     let hoveredIndex = -1;
@@ -46,6 +49,18 @@ comits by time and date
         else if (evt.type === "mouseleave") {
             hoveredIndex = -1
         }
+        else if (evt.type === "click") {
+            let commit = commits[index]
+            if (!clickedCommits.includes(commit)) {
+                // Add the commit to the clickedCommits array
+                clickedCommits = [...clickedCommits, commit];
+            }
+            else {
+                    // Remove the commit from the array
+                    clickedCommits = clickedCommits.filter(c => c !== commit);
+            }
+        }
+
     }
 
 
@@ -97,6 +112,10 @@ $: xScale = d3.scaleTime()
 $: yScale = d3.scaleLinear()
               .domain([24, 0])
               .range([usableArea.bottom, usableArea.top]);
+
+$: rScale = d3.scaleSqrt()
+                .domain(d3.extent(commits.map(d=>d.totalLines)))
+                .range([2, 30]);
 
 
 let margin = {top: 10, right: 10, bottom: 30, left: 20};
@@ -154,13 +173,17 @@ $: {
     <g class="dots">
         {#each commits as commit, index }
             <circle
-                cx={ xScale(commit.datetime) }
-                cy={ yScale(commit.hourFrac) }
-                r="5"
-                fill="steelblue"
                 on:mouseenter={evt => dotInteraction(index, evt)}
                 on:mouseleave={evt => dotInteraction(index, evt)}
+                on:click={ evt => dotInteraction(index, evt) }
+                class:selected={ clickedCommits.includes(commit) }
+                cx={ xScale(commit.datetime) }
+                cy={ yScale(commit.hourFrac) }
+                r={ rScale(commit.totalLines) }
+                fill="steelblue"
+                fill-opacity="0.5"
             />
+
         {/each}
     </g>
     <g class="gridlines" transform="translate({usableArea.left}, 0)" bind:this={yAxisGridlines} />
@@ -250,7 +273,7 @@ $: {
     }
     circle {
         transition: 200ms;
-
+        
 
         &:hover {
             transform: scale(1.5);
@@ -259,6 +282,9 @@ $: {
         transform-box: fill-box;
 
     }
-    
+    .selected {
+        fill: var(--color-accent);
+    }
+
 </style>
 
